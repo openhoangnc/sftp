@@ -20,6 +20,8 @@ type packetManager struct {
 	packetCount uint32
 	// it is not nil if the allocator is enabled
 	alloc *allocator
+
+	rootDir *string
 }
 
 type packetSender interface {
@@ -92,12 +94,14 @@ func (o orderedPackets) Sort() {
 //// packet registry
 // register incoming packets to be handled
 func (s *packetManager) incomingPacket(pkt orderedRequest) {
+	s.interceptRequest(&pkt)
 	s.working.Add(1)
 	s.requests <- pkt
 }
 
 // register outgoing packets as being ready
 func (s *packetManager) readyPacket(pkt orderedResponse) {
+	s.interceptResponse(&pkt)
 	s.responses <- pkt
 	s.working.Done()
 }

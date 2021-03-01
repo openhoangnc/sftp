@@ -108,6 +108,18 @@ func WithDebug(w io.Writer) ServerOption {
 	}
 }
 
+// WithRootDir configures a Server to serve files in a directory as root
+func WithRootDir(dir string) ServerOption {
+	return func(s *Server) error {
+		fullPath, err := filepath.Abs(dir)
+		if err != nil {
+			return err
+		}
+		s.pktMgr.rootDir = &fullPath
+		return nil
+	}
+}
+
 // ReadOnly configures a Server to serve files in read-only mode.
 func ReadOnly() ServerOption {
 	return func(s *Server) error {
@@ -242,7 +254,10 @@ func handlePacket(s *Server, p orderedRequest) error {
 		}
 	case *sshFxpRealpathPacket:
 		f, err := filepath.Abs(p.Path)
-		f = cleanPath(f)
+		if err != nil {
+			f = "/"
+		}
+
 		rpkt = &sshFxpNamePacket{
 			ID: p.ID,
 			NameAttrs: []*sshFxpNameAttr{
@@ -252,9 +267,6 @@ func handlePacket(s *Server, p orderedRequest) error {
 					Attrs:    emptyFileStat,
 				},
 			},
-		}
-		if err != nil {
-			rpkt = statusFromError(p.ID, err)
 		}
 	case *sshFxpOpendirPacket:
 		if stat, err := os.Stat(p.Path); err != nil {
